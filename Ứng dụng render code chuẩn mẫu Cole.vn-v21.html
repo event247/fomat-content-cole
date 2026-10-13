@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Code Generator Pro</title>
+    
+    <!-- Tailwind CSS for Application UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Marked.js for Markdown to HTML conversion -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Highlight.js for Code Syntax Highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Turndown.js for HTML to Markdown conversion (Hỗ trợ copy từ Word/Docs) -->
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <script src="https://unpkg.com/turndown-plugin-gfm/dist/turndown-plugin-gfm.js"></script>
+
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* CSS cho UI của ứng dụng */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #2563eb; }
+        .tab-inactive { color: #6b7280; }
+        .tab-inactive:hover { color: #374151; }
+        
+        /* Hiệu ứng Toast thông báo */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #10B981;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 50;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+
+        /* Toolbar Styles */
+        .toolbar-btn {
+            padding: 6px 10px;
+            color: #4b5563;
+            border-radius: 4px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .toolbar-btn:hover {
+            background-color: #e5e7eb;
+            color: #1f2937;
+        }
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background-color: #d1d5db;
+            margin: 0 8px;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-2 rounded-lg">
+                <i class="fa-solid fa-code"></i>
+            </div>
+            <h1 class="text-xl font-bold text-gray-800">Blog Code Generator</h1>
+        </div>
+        <button id="renderBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Render Code
+        </button>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Left Panel: Input -->
+        <div class="w-full md:w-1/2 flex flex-col border-r border-gray-200 bg-gray-50 h-full">
+            <div class="bg-gray-100 border-b border-gray-200 px-4 py-2 flex justify-between items-center">
+                <span class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Soạn thảo Markdown</span>
+                <button onclick="clearEditor()" class="text-gray-500 hover:text-red-500 text-sm transition" title="Xóa toàn bộ">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="bg-white border-b border-gray-200 px-2 py-2 flex flex-wrap items-center gap-1 shrink-0">
+                <button class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="In đậm (Ctrl+B)">
+                    <i class="fa-solid fa-bold"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="In nghiêng (Ctrl+I)">
+                    <i class="fa-solid fa-italic"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertMarkdown('<u>', '</u>')" title="Gạch chân (Ctrl+U)">
+                    <i class="fa-solid fa-underline"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertMarkdown('~~', '~~')" title="Gạch ngang chữ">
+                    <i class="fa-solid fa-strikethrough"></i>
+                </button>
+                
+                <div class="toolbar-divider"></div>
+
+                <button class="toolbar-btn" onclick="insertHeader(2)" title="Tiêu đề H2">
+                    <span class="font-bold">H2</span>
+                </button>
+                <button class="toolbar-btn" onclick="insertHeader(3)" title="Tiêu đề H3">
+                    <span class="font-bold">H3</span>
+                </button>
+
+                <div class="toolbar-divider"></div>
+
+                <button class="toolbar-btn" onclick="insertList('- ')" title="Danh sách chấm tròn">
+                    <i class="fa-solid fa-list-ul"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertList('1. ')" title="Danh sách số">
+                    <i class="fa-solid fa-list-ol"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertMarkdown('> ', '')" title="Trích dẫn (Quote)">
+                    <i class="fa-solid fa-quote-right"></i>
+                </button>
+
+                <div class="toolbar-divider"></div>
+
+                <button class="toolbar-btn" onclick="insertLink()" title="Chèn Link">
+                    <i class="fa-solid fa-link"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertImage()" title="Chèn Ảnh">
+                    <i class="fa-regular fa-image"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertTable()" title="Chèn Bảng">
+                    <i class="fa-solid fa-table"></i>
+                </button>
+
+                <div class="toolbar-divider"></div>
+
+                <button class="toolbar-btn bg-gray-800 text-white hover:bg-gray-700" onclick="insertCodeBlock()" title="Định dạng thành Khối Code (VS Code style)">
+                    <i class="fa-solid fa-file-code"></i> Code
+                </button>
+            </div>
+
+            <textarea id="markdownInput" class="flex-1 w-full p-4 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm leading-relaxed" placeholder="Nhập văn bản của bạn vào đây..."></textarea>
+        </div>
+
+        <!-- Right Panel: Output -->
+        <div class="w-full md:w-1/2 flex flex-col h-full bg-white relative">
+            
+            <!-- Tabs -->
+            <div class="bg-gray-100 border-b border-gray-200 px-4 flex">
+                <button id="tabPreviewBtn" class="px-4 py-3 text-sm font-semibold tab-active transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-eye"></i> Xem trước (Preview)
+                </button>
+                <button id="tabCodeBtn" class="px-4 py-3 text-sm font-semibold tab-inactive transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-html5"></i> Code HTML
+                </button>
+            </div>
+
+            <!-- Preview Area -->
+            <div id="previewArea" class="flex-1 overflow-auto bg-gray-200 p-8">
+                <div id="previewContainer"></div>
+            </div>
+
+            <!-- HTML Code Area -->
+            <div id="codeArea" class="flex-1 overflow-auto bg-[#1e1e1e] relative hidden">
+                <button onclick="copyCode()" class="absolute top-4 right-4 bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm transition flex items-center gap-2 border border-gray-500">
+                    <i class="fa-regular fa-copy"></i> Copy Code
+                </button>
+                <textarea id="htmlOutput" class="w-full h-full p-6 bg-transparent text-green-400 font-mono text-sm resize-none focus:outline-none" readonly></textarea>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast"><i class="fa-solid fa-check-circle"></i> Đã copy Code HTML!</div>
+
+    <script>
+        // === MẪU CSS CỦA BẠN ===
+        const userCSS = `<style>
+        /* * GIỚI HẠN PHẠM VI CSS TUYỆT ĐỐI (SCOPE):
+         * Đã loại bỏ hoàn toàn định dạng cho thẻ 'body' toàn cục để tránh lỗi vỡ viền trang quản trị (CMS Admin).
+         * Toàn bộ CSS bên dưới đều bắt đầu bằng .blog-container và sử dụng !important để chống lỗi theme đè màu.
+         */
+
+        .blog-container,
+        .blog-container * {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+            box-sizing: border-box !important;
+        }
+
+        .blog-container {
+            font-size: 16px !important;
+            line-height: 1.7 !important;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff !important;
+            padding: 14px !important;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            color: #333333 !important; 
+        }
+
+        /* Tiêu đề */
+        .blog-container h1, 
+        .blog-container h2, 
+        .blog-container h3, 
+        .blog-container h4 {
+            color: #2c3e50 !important;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 700 !important;
+        }
+
+        .blog-container h1 {
+            font-size: 2.2rem !important;
+            line-height: 1.35 !important;
+            border-bottom: 3px solid #eaeaea !important;
+            padding-bottom: 15px !important;
+            margin-top: 0 !important;
+            margin-bottom: 24px !important;
+            font-weight: 800 !important;
+        }
+
+        .blog-container h2 {
+            font-size: 1.6rem !important;
+            border-bottom: 2px solid #eaeaea !important;
+            padding-bottom: 10px !important;
+            margin-top: 48px !important;
+            margin-bottom: 20px !important;
+        }
+
+        .blog-container h3 {
+            font-size: 1.3rem !important;
+            margin-top: 32px !important;
+            margin-bottom: 16px !important;
+        }
+
+        .blog-container h4 {
+            font-size: 1.1rem !important;
+        }
+
+        /* Đoạn văn & Danh sách - Ép màu triệt để cho chữ */
+        .blog-container p,
+        .blog-container li,
+        .blog-container span,
+        .blog-container td,
+        .blog-container th,
+        .blog-container strong,
+        .blog-container b {
+            color: #333333 !important;
+        }
+
+        /* ĐIỀU CHỈNH: Giảm độ dày chữ in đậm xuống khoảng 15% (từ 700 mặc định xuống 600) */
+        .blog-container strong,
+        .blog-container b {
+            font-weight: 600 !important;
+        }
+
+        .blog-container p {
+            margin-bottom: 16px !important;
+            text-align: justify !important; /* Căn đều 2 bên */
+        }
+
+        .blog-container ul { 
+            margin-bottom: 20px !important;
+            padding-left: 24px !important;
+            list-style-type: disc !important; /* Dấu chấm tròn đen mặc định */
+        }
+
+        .blog-container ul ul {
+            list-style-type: circle !important; /* Dấu chấm tròn trắng cho danh sách cấp 2 */
+            margin-bottom: 0 !important;
+        }
+        
+        .blog-container ul ul ul {
+            list-style-type: square !important; /* Dấu vuông đen cho danh sách cấp 3 */
+        }
+
+        .blog-container ol { 
+            margin-bottom: 20px !important;
+            padding-left: 24px !important;
+            list-style-type: decimal !important; /* Số thứ tự 1, 2, 3... */
+        }
+
+        .blog-container li {
+            margin-bottom: 10px !important;
+            text-align: justify !important; /* Căn đều 2 bên cho list */
+            display: list-item !important; /* Bắt buộc hiển thị dạng danh sách */
+        }
+
+        /* Hình ảnh */
+        .blog-container figure {
+            margin: 30px 0 !important;
+            text-align: center !important;
+        }
+
+        .blog-container img {
+            max-width: 100% !important;
+            height: auto !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+            display: block !important;
+            margin: 0 auto !important;
+        }
+
+        /* Thêm CSS cho Caption (Alt text) dưới ảnh */
+        .blog-container figcaption {
+            font-size: 0.9em !important;
+            font-style: italic !important;
+            color: #666 !important;
+            margin-top: 8px !important;
+            text-align: center !important;
+        }
+
+        /* Video nhúng */
+        .blog-container .video-responsive {
+            position: relative !important;
+            padding-bottom: 56.25% !important; /* Tỉ lệ 16:9 */
+            height: 0 !important;
+            overflow: hidden !important;
+            max-width: 100% !important;
+            border-radius: 8px !important;
+            margin: 30px 0 !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+            background-color: #000 !important;
+        }
+
+        .blog-container .video-responsive iframe {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            border: 0 !important;
+            border-radius: 8px !important;
+        }
+
+        /* Bảng biểu */
+        .blog-container .table-responsive {
+            width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important; /* Mượt mà trên iOS */
+            margin-bottom: 24px !important;
+        }
+
+        .blog-container table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 0 !important; /* Chuyển margin ra thẻ bọc ngoài */
+            font-size: 0.95rem !important;
+        }
+
+        .blog-container th, 
+        .blog-container td {
+            padding: 12px !important;
+            border: 1px solid #ddd !important;
+            text-align: left !important;
+        }
+
+        .blog-container th {
+            background-color: #f4f7f6 !important;
+            font-weight: 600 !important; /* Giảm độ béo của tiêu đề bảng cho đồng bộ */
+        }
+
+        /* Khối trích dẫn (Blockquote) */
+        .blog-container blockquote {
+            border-left: 4px solid #3498db !important;
+            margin: 20px 0 !important;
+            padding: 10px 20px !important;
+            background-color: #f0f8ff !important;
+            font-style: italic !important;
+            font-size: 16px !important; /* bằng văn bản thường */
+        }
+        
+        .blog-container blockquote p {
+            color: #555555 !important;
+        }
+
+        /* Khối Code / Flowchart (VS Code Style) */
+        .blog-container pre {
+            background-color: #1e1e1e !important;
+            padding: 16px !important;
+            border-radius: 6px !important;
+            overflow-x: auto !important;
+            margin-bottom: 20px !important;
+            border: 1px solid #333 !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+        }
+        
+        .blog-container pre code {
+            color: #d4d4d4 !important; /* Màu chữ VS Code mặc định */
+            font-family: 'Consolas', 'Courier New', Courier, monospace !important;
+            font-size: 0.9rem !important;
+            line-height: 1.5 !important;
+            background-color: transparent !important;
+            padding: 0 !important;
+        }
+        
+        /* BỘ MÀU SYNTAX HIGHLIGHTING (Giống VS Code Dark) */
+        .blog-container .hljs-keyword, .blog-container .hljs-literal, .blog-container .hljs-symbol, .blog-container .hljs-name { color: #569cd6 !important; }
+        .blog-container .hljs-link { color: #569cd6 !important; text-decoration: underline !important; }
+        .blog-container .hljs-built_in, .blog-container .hljs-type { color: #4ec9b0 !important; }
+        .blog-container .hljs-number, .blog-container .hljs-class { color: #b5cea8 !important; }
+        .blog-container .hljs-string, .blog-container .hljs-meta .hljs-string { color: #ce9178 !important; }
+        .blog-container .hljs-regexp, .blog-container .hljs-template-tag { color: #9a5334 !important; }
+        .blog-container .hljs-subst, .blog-container .hljs-function, .blog-container .hljs-title, .blog-container .hljs-params, .blog-container .hljs-formula { color: #dcdcaa !important; }
+        .blog-container .hljs-comment, .blog-container .hljs-quote { color: #6a9955 !important; font-style: italic !important; }
+        .blog-container .hljs-doctag { color: #608b4e !important; }
+        .blog-container .hljs-meta, .blog-container .hljs-meta .hljs-keyword, .blog-container .hljs-tag { color: #9b9b9b !important; }
+        .blog-container .hljs-variable, .blog-container .hljs-template-variable { color: #9cdcfe !important; }
+        .blog-container .hljs-attr, .blog-container .hljs-attribute { color: #9cdcfe !important; }
+
+        /* Inline code */
+        .blog-container p code, 
+        .blog-container li code {
+            background-color: #f1f5f9 !important;
+            color: #ef4444 !important;
+            padding: 2px 4px !important;
+            border-radius: 4px !important;
+            font-family: 'Consolas', 'Courier New', Courier, monospace !important;
+            font-size: 0.9em !important;
+        }
+
+        /* Liên kết */
+        .blog-container a,
+        .blog-container a span,
+        .blog-container a strong,
+        .blog-container a em {
+            color: #3498db !important;
+            text-decoration: none !important;
+            font-weight: normal !important; /* Bỏ in đậm link */
+        }
+
+        .blog-container a:hover,
+        .blog-container a:hover span,
+        .blog-container a:hover strong,
+        .blog-container a:hover em {
+            text-decoration: underline !important;
+            color: #1d4ed8 !important; /* Đậm màu xanh hơn khi di chuột */
+        }
+
+        /* Table of contents đơn giản */
+        .blog-container .toc {
+            background-color: #f8f9fa !important;
+            padding: 20px !important;
+            border-radius: 6px !important;
+            border: 1px solid #e9ecef !important;
+            margin-bottom: 40px !important;
+        }
+
+        .blog-container .toc h3 {
+            margin-top: 0 !important;
+            font-weight: 700 !important;
+        }
+        
+        /* BẢO VỆ MỤC LỤC KHÔNG BỊ DÍNH DẤU CHẤM ĐEN */
+        .blog-container .toc ul,
+        .blog-container .toc li {
+            list-style-type: none !important;
+            padding-left: 0 !important;
+        }
+        
+        .blog-container .toc a {
+            font-weight: normal !important; /* Bỏ in đậm cho mục lục */
+            color: #333333 !important; /* Đổi màu chữ mục lục thành đen */
+        }
+        
+        .blog-container .toc a:hover {
+            color: #3498db !important; /* Di chuột vào mới đổi thành màu xanh */
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .blog-container {
+                padding: 5px !important;
+            }
+        }
+    </style>`;
+
+        // Cấu hình bộ dịch Marked.js tiêu chuẩn có tích hợp Highlight.js để tô màu Code
+        marked.setOptions({
+            breaks: true, // Cho phép xuống dòng bằng Enter
+            gfm: true,    // Hỗ trợ Github Flavored Markdown (Bảng, danh sách, code...)
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                // Nếu không chỉ định ngôn ngữ, tự động nhận diện ngôn ngữ để tô màu
+                return hljs.highlightAuto(code).value;
+            }
+        });
+
+        // DOM Elements
+        const markdownInput = document.getElementById('markdownInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const htmlOutput = document.getElementById('htmlOutput');
+        const renderBtn = document.getElementById('renderBtn');
+        const tabPreviewBtn = document.getElementById('tabPreviewBtn');
+        const tabCodeBtn = document.getElementById('tabCodeBtn');
+        const previewArea = document.getElementById('previewArea');
+        const codeArea = document.getElementById('codeArea');
+        const toast = document.getElementById('toast');
+
+        // === TOOLBAR FUNCTIONS ===
+        function insertMarkdown(prefix, suffix) {
+            const start = markdownInput.selectionStart;
+            const end = markdownInput.selectionEnd;
+            const text = markdownInput.value;
+            const selectedText = text.substring(start, end);
+            
+            markdownInput.value = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
+            markdownInput.focus();
+            
+            if (selectedText.length > 0) {
+                markdownInput.setSelectionRange(start, end + prefix.length + suffix.length);
+            } else {
+                markdownInput.setSelectionRange(start + prefix.length, start + prefix.length);
+            }
+            processContent();
+        }
+
+        function insertHeader(level) {
+            const prefix = '#'.repeat(level) + ' ';
+            insertMarkdown(prefix, '');
+        }
+
+        function insertList(prefix) {
+            const start = markdownInput.selectionStart;
+            const end = markdownInput.selectionEnd;
+            const text = markdownInput.value;
+            const selectedText = text.substring(start, end);
+
+            if (selectedText.length > 0) {
+                // Apply list prefix to each selected line
+                const lines = selectedText.split('\n');
+                const listText = lines.map(line => prefix + line).join('\n');
+                markdownInput.value = text.substring(0, start) + listText + text.substring(end);
+                markdownInput.setSelectionRange(start, start + listText.length);
+            } else {
+                insertMarkdown(prefix, '');
+            }
+            processContent();
+        }
+
+        function insertLink() {
+            const url = prompt("Nhập địa chỉ liên kết (URL):", "https://");
+            if (url) {
+                insertMarkdown('[', `](${url})`);
+            }
+        }
+
+        function insertImage() {
+            const url = prompt("Nhập đường dẫn ảnh (URL):", "https://");
+            if (url) {
+                const alt = prompt("Nhập mô tả ảnh (Alt text):", "Mô tả ảnh");
+                const imageMarkdown = `![${alt}](${url})`;
+                insertMarkdown(imageMarkdown, '');
+            }
+        }
+
+        function insertTable() {
+            const tableTemplate = `\n| Tiêu đề 1 | Tiêu đề 2 | Tiêu đề 3 |\n| :--- | :--- | :--- |\n| Cột 1 | Cột 2 | Cột 3 |\n| Cột 1 | Cột 2 | Cột 3 |\n`;
+            insertMarkdown(tableTemplate, '');
+        }
+
+        function insertCodeBlock() {
+            const start = markdownInput.selectionStart;
+            const end = markdownInput.selectionEnd;
+            const selectedText = markdownInput.value.substring(start, end);
+            
+            if (selectedText.includes('\n') || selectedText.length > 30) {
+                // Block code (nhiều dòng) -> Auto format thành python mặc định (hoặc người dùng có thể đổi)
+                insertMarkdown('\n```python\n', '\n```\n');
+            } else {
+                // Inline code (đoạn ngắn)
+                insertMarkdown('`', '`');
+            }
+        }
+
+        // Bắt phím tắt (Ctrl+B, Ctrl+I...)
+        markdownInput.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'b': e.preventDefault(); insertMarkdown('**', '**'); break;
+                    case 'i': e.preventDefault(); insertMarkdown('*', '*'); break;
+                    case 'u': e.preventDefault(); insertMarkdown('<u>', '</u>'); break;
+                }
+            }
+        });
+
+        // === KHỞI TẠO TURNDOWN (XỬ LÝ DÁN TỪ WORD/DOCS) ===
+        const turndownService = new TurndownService({
+            headingStyle: 'atx',
+            codeBlockStyle: 'fenced',
+            bulletListMarker: '-' // Ưu tiên dùng dấu gạch ngang (-) cho danh sách trong khung soạn thảo Markdown
+        });
+        
+        // Kích hoạt plugin GFM (để hỗ trợ copy Bảng biểu, Checkbox...)
+        if (typeof turndownPluginGfm !== 'undefined') {
+            const gfm = turndownPluginGfm.gfm;
+            turndownService.use(gfm);
+        }
+
+        function cleanHTMLBeforeTurndown(html) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+
+            // Xóa các thẻ rác, colgroup, metadata ẩn của Google Docs
+            tempDiv.querySelectorAll('colgroup, col, meta, style, script').forEach(el => el.remove());
+
+            // --- KHẮC PHỤC LỖI VỠ BẢNG TỪ GOOGLE DOCS ---
+            // Gỡ bỏ thẻ <p> bên trong các ô của bảng. 
+            tempDiv.querySelectorAll('th, td').forEach(cell => {
+                // Bóc tách thẻ <p>, chỉ giữ lại ruột bên trong
+                cell.querySelectorAll('p').forEach(p => {
+                    const fragment = document.createDocumentFragment();
+                    while (p.firstChild) {
+                        fragment.appendChild(p.firstChild);
+                    }
+                    p.parentNode.replaceChild(fragment, p);
+                });
+                // Xóa mọi dấu Enter (xuống dòng) và khoảng trắng thừa bên trong ô
+                cell.innerHTML = cell.innerHTML.replace(/(\r\n|\n|\r)/gm, " ").replace(/\s+/g, " ").trim();
+            });
+
+            // Xử lý Bảng từ Google Docs/Word (Ép tạo thead để Turndown hiểu là Markdown Table)
+            tempDiv.querySelectorAll('table').forEach(table => {
+                const rows = table.querySelectorAll('tr');
+                if (rows.length > 0 && !table.querySelector('thead')) {
+                    const thead = document.createElement('thead');
+                    const firstRow = rows[0];
+                    
+                    const cells = firstRow.querySelectorAll('td, th');
+                    const newRow = document.createElement('tr');
+                    cells.forEach(cell => {
+                        const th = document.createElement('th');
+                        th.innerHTML = cell.innerHTML;
+                        newRow.appendChild(th);
+                    });
+                    
+                    thead.appendChild(newRow);
+                    table.insertBefore(thead, table.firstChild);
+                    firstRow.remove();
+                }
+            });
+
+            // Xử lý thẻ b bọc ngoài cùng bị dư thừa của Google Docs
+            const docsWrappers = tempDiv.querySelectorAll('b[id^="docs-internal-guid"]');
+            docsWrappers.forEach(b => {
+                if (b.style.fontWeight === 'normal') {
+                    const fragment = document.createDocumentFragment();
+                    while(b.firstChild) {
+                        fragment.appendChild(b.firstChild);
+                    }
+                    b.parentNode.replaceChild(fragment, b);
+                }
+            });
+
+            // Chuyển đổi các thẻ span chứa định dạng (bold, italic) của Docs sang thẻ chuẩn (strong, em)
+            const spans = tempDiv.querySelectorAll('span');
+            spans.forEach(span => {
+                // Ép xóa các định dạng font-family rác từ Word/Docs
+                span.style.fontFamily = ''; 
+
+                let isBold = span.style.fontWeight === '700' || span.style.fontWeight === 'bold' || parseInt(span.style.fontWeight) >= 600;
+                let isItalic = span.style.fontStyle === 'italic';
+                
+                if (isBold || isItalic) {
+                    let inner = span.innerHTML;
+                    if (isBold) inner = `<strong>${inner}</strong>`;
+                    if (isItalic) inner = `<em>${inner}</em>`;
+                    span.innerHTML = inner;
+                }
+            });
+
+            return tempDiv.innerHTML;
+        }
+
+        // Bắt sự kiện Dán (Paste) để tự động dịch HTML sang Markdown
+        markdownInput.addEventListener('paste', function(e) {
+            // Lấy HTML từ Clipboard
+            const html = (e.clipboardData || window.clipboardData).getData('text/html');
+            
+            if (html) {
+                e.preventDefault(); // Ngăn dán văn bản thuần
+                
+                // Làm sạch HTML của Docs và chuyển thành Markdown
+                const cleanedHTML = cleanHTMLBeforeTurndown(html);
+                const markdown = turndownService.turndown(cleanedHTML);
+                
+                // Chèn markdown vào vị trí con trỏ
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                const text = this.value;
+                this.value = text.substring(0, start) + markdown + text.substring(end);
+                
+                // Cập nhật vị trí con trỏ
+                this.selectionStart = this.selectionEnd = start + markdown.length;
+                
+                // Tự động Render
+                processContent();
+                showToast("Đã tự động chuyển đổi định dạng từ Clipboard!", "#3b82f6");
+            }
+        });
+
+        // Hàm xử lý Render Code
+        function processContent() {
+            const rawMarkdown = markdownInput.value;
+            
+            if(!rawMarkdown.trim()) {
+                showToast("Vui lòng nhập nội dung!", "#EF4444");
+                return;
+            }
+
+            // Dịch Markdown sang HTML thô
+            let rawHtml = marked.parse(rawMarkdown);
+
+            // --- XỬ LÝ HTML BẰNG DOM (ROBUST) ĐỂ THÊM TARGET=_BLANK VÀ FIGURE ---
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = rawHtml;
+
+            // 1. Ép tất cả link (TRỪ LINK CỦA MỤC LỤC SẮP TẠO) mở trong Tab mới
+            // VÀ Tự động nhúng Video YouTube
+            tempDiv.querySelectorAll('a').forEach(a => {
+                const url = a.href;
+                // Regex tìm Video ID của YouTube (hoạt động với youtube.com và youtu.be)
+                const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+                const match = url.match(ytRegex);
+
+                const isNakedLink = a.textContent.trim() === url.trim() || a.textContent.trim() === url.replace(/^https?:\/\//, '').trim();
+                const isOnlyChildOfP = a.parentElement && a.parentElement.tagName.toLowerCase() === 'p' && a.parentElement.textContent.trim() === a.textContent.trim();
+
+                // Nhúng video nếu là link đứng một mình trên 1 dòng hoặc là link trần
+                if (match && (isOnlyChildOfP || isNakedLink)) {
+                    const videoId = match[1];
+                    const iframeHtml = `
+                        <div class="video-responsive">
+                            <iframe src="https://www.youtube.com/embed/${videoId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>
+                    `;
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = iframeHtml.trim();
+                    const videoEl = wrapper.firstChild;
+
+                    // Thay thế an toàn
+                    if (isOnlyChildOfP) {
+                        a.parentElement.parentNode.replaceChild(videoEl, a.parentElement);
+                    } else {
+                        a.parentNode.replaceChild(videoEl, a);
+                    }
+                } else {
+                    // Nếu là link bình thường thì ép mở tab mới
+                    a.setAttribute('target', '_blank');
+                    a.setAttribute('rel', 'noopener noreferrer');
+                }
+            });
+
+            // 2. Bọc thẻ <figure>, thêm loading="lazy" và chèn figcaption từ thuộc tính alt
+            tempDiv.querySelectorAll('img').forEach(img => {
+                img.setAttribute('loading', 'lazy');
+                
+                // Lấy nội dung alt text
+                const altText = img.getAttribute('alt');
+
+                let figureElement = img.closest('figure');
+
+                // Khắc phục việc thẻ <p> bọc ảnh mặc định của Markdown
+                if (img.parentElement && img.parentElement.tagName.toLowerCase() === 'p') {
+                    const p = img.parentElement;
+                    const figure = document.createElement('figure');
+                    figure.innerHTML = p.innerHTML; // Lấy img ra khỏi p
+                    p.parentNode.replaceChild(figure, p);
+                    figureElement = figure;
+                    // Lấy lại tham chiếu đến thẻ img mới bên trong figure
+                    img = figure.querySelector('img');
+                } else if (!figureElement) {
+                    const figure = document.createElement('figure');
+                    img.parentNode.insertBefore(figure, img);
+                    figure.appendChild(img);
+                    figureElement = figure;
+                }
+
+                // Nếu có alt text, tạo thẻ figcaption và chèn vào cuối thẻ figure
+                if (altText && altText.trim() !== '') {
+                    // Kiểm tra xem đã có figcaption chưa (tránh chèn trùng lặp nếu chạy lại)
+                    if (!figureElement.querySelector('figcaption')) {
+                        const figcaption = document.createElement('figcaption');
+                        figcaption.textContent = altText;
+                        figureElement.appendChild(figcaption);
+                    }
+                }
+            });
+
+            // 3. Bọc thẻ div cho Table để xử lý thanh cuộn ngang (Responsive trên Mobile)
+            tempDiv.querySelectorAll('table').forEach(table => {
+                if (!table.parentElement.classList.contains('table-responsive')) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'table-responsive';
+                    table.parentNode.insertBefore(wrapper, table);
+                    wrapper.appendChild(table);
+                }
+            });
+
+            // Gỡ bỏ tính năng tự động tạo mục lục (Auto TOC) theo yêu cầu
+            // Nếu người dùng lỡ copy dính mục lục từ nguồn khác, có thể tự động xóa đi (tùy chọn)
+            tempDiv.querySelectorAll('.toc').forEach(el => el.remove());
+
+            rawHtml = tempDiv.innerHTML;
+
+            const finalHTML = `
+<!-- BẮT ĐẦU ĐOẠN CODE BÀI VIẾT -->
+${userCSS}
+
+<div class="blog-container">
+${rawHtml}
+</div>
+<!-- KẾT THÚC ĐOẠN CODE BÀI VIẾT -->
+`;
+            
+            // Cập nhật vùng Preview (Chỉ đẩy HTML vào, trình duyệt sẽ tự đọc tag <style>)
+            previewContainer.innerHTML = finalHTML;
+            
+            // Cập nhật vùng Code Export
+            htmlOutput.value = finalHTML.trim();
+        }
+
+        // Sự kiện nút Render
+        renderBtn.addEventListener('click', processContent);
+
+        // Chuyển đổi Tabs
+        tabPreviewBtn.addEventListener('click', () => {
+            tabPreviewBtn.className = "px-4 py-3 text-sm font-semibold tab-active transition-colors flex items-center gap-2";
+            tabCodeBtn.className = "px-4 py-3 text-sm font-semibold tab-inactive transition-colors flex items-center gap-2";
+            previewArea.classList.remove('hidden');
+            codeArea.classList.add('hidden');
+        });
+
+        tabCodeBtn.addEventListener('click', () => {
+            tabCodeBtn.className = "px-4 py-3 text-sm font-semibold tab-active transition-colors flex items-center gap-2";
+            tabPreviewBtn.className = "px-4 py-3 text-sm font-semibold tab-inactive transition-colors flex items-center gap-2";
+            codeArea.classList.remove('hidden');
+            previewArea.classList.add('hidden');
+        });
+
+        // Hàm Xóa nội dung
+        function clearEditor() {
+            markdownInput.value = '';
+            previewContainer.innerHTML = '';
+            htmlOutput.value = '';
+        }
+
+        function copyCode() {
+            htmlOutput.select();
+            htmlOutput.setSelectionRange(0, 99999);
+            document.execCommand("copy");
+            showToast("Đã copy Code HTML!", "#3b82f6");
+            window.getSelection().removeAllRanges();
+        }
+
+        // Cấu hình Toast
+        function showToast(message, bgColor) {
+            toast.innerHTML = message;
+            toast.style.backgroundColor = bgColor;
+            toast.className = "show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // Chèn dữ liệu mẫu ban đầu
+        const sampleData = `
+AI Engineer đang là một trong những hướng đi hấp dẫn nhất với người muốn bước vào làn sóng AI ứng dụng thực chiến. Tuy nhiên, AI là ngành có rào cản kỹ thuật cao. Người học rất dễ rơi vào tình trạng quá tải và chán nản, không biết chọn lọc kiến thức để học đúng. Vậy **nên bắt đầu học AI Engineer từ đâu**?
+
+Bài viết này cung cấp một **lộ trình AI engineer** thực tế, đi từ nền tảng toán học, lập trình đến những kỹ năng triển khai hệ thống AI hoàn chỉnh nhất hiện tại, giúp bạn định hình rõ ràng con đường **học AI engineer từ đầu**.
+
+## AI Engineer là gì?
+
+AI Engineer là kỹ sư trí tuệ nhân tạo chịu trách nhiệm xây dựng, triển khai và tối ưu hóa các mô hình trí tuệ nhân tạo để tích hợp vào các sản phẩm phần mềm thực tế. Khác với công việc nghiên cứu học thuật khác, AI Engineer tập trung vào tính ứng dụng và độ ổn định của hệ thống.
+
+Để không học lệch hướng, bạn cần phân biệt rõ vị trí này với hai vị trí tương cận trong ngành dữ liệu thông qua bảng tiêu chí dưới đây:
+
+| Tiêu chí | AI Engineer | Data Scientist |
+| :--- | :--- | :--- |
+| **Trọng tâm** | Triển khai, tối ưu mô hình AI và đưa vào sản xuất. | Phân tích dữ liệu chuyên sâu, tìm kiếm Insights. |
+| **Đầu ra** | API dự đoán, Chatbot. | Báo cáo chiến lược, Dashboard. |
+
+## Các giai đoạn trong lộ trình học AI Engineer
+
+![Sơ đồ tổng quan 4 giai đoạn lộ trình học AI Engineer](https://cole.vn/storage/image_comment/U74bVoI8SC64EmVwX0y67gCkwdeq1nUXmkPure49.jpeg)
+
+### Giai đoạn 1: Xây dựng nền tảng gốc
+* **Học lập trình Python:** Làm quen với cú pháp, cấu trúc dữ liệu.
+* **Học toán ứng dụng:** Đại số tuyến tính, Xác suất thống kê.
+
+### Giai đoạn 2: Trọng tâm Machine Learning
+Đây là giai đoạn tiếp cận trực tiếp với các thuật toán để máy tính tự học và đưa ra dự đoán. 
+
+https://www.youtube.com/watch?v=kCc8FmEb1nY
+
+#### Học máy có giám sát
+Cần làm chủ các thuật toán học có giám sát như: Linear Regression, Random Forest.
+
+> **Lời khuyên:** Lộ trình học AI Engineer hiệu quả không bắt đầu từ việc học tất cả mọi thứ liên quan đến AI, mà từ việc học đúng các kiến thức theo thứ tự.
+
+Đây là ví dụ định dạng code:
+
+Khi bạn thiết lập môi trường Python, bạn có thể chạy lệnh cài đặt thư viện bằng \`pip install pandas\`.
+
+Hoặc một khối mã nguồn đầy đủ như sau:
+
+\`\`\`python
+import pandas as pd
+
+# Load dataset
+df = pd.read_csv('data.csv')
+print(df.head())
+\`\`\`
+`;
+        
+        // Khởi tạo app
+        window.onload = () => {
+            markdownInput.value = sampleData.trim();
+            processContent(); // Tự động render lần đầu
+        };
+    </script>
+</body>
+</html>
